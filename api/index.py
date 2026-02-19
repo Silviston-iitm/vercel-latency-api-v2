@@ -14,8 +14,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-with open("q-vercel-latency.json") as f:
-    data = json.load(f)
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+file_path = os.path.join(BASE_DIR, "telemetry.json")
+
+with open(file_path, "r") as f:
+    telemetry_data = json.load(f)
+
 
 
 class RequestModel(BaseModel):
