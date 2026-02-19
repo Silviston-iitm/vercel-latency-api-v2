@@ -19,6 +19,7 @@ class RequestModel(BaseModel):
     threshold_ms: int
 
 
+# 🔥 Handle preflight properly
 @app.options("/api/latency")
 def options_handler():
     return Response(
@@ -34,7 +35,10 @@ def options_handler():
 @app.post("/api/latency")
 def analyze(payload: RequestModel, response: Response):
 
+    # 🔥 Force CORS header on actual response
     response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
 
     results = {}
 
