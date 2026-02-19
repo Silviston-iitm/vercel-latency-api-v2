@@ -8,7 +8,7 @@ from typing import List
 
 app = FastAPI()
 
-# 1. Broad CORS for Vercel Serverless
+# 1. CORS Setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,8 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Vercel-friendly pathing
-# Place 'telemetry.json' in the same folder as this python file.
+# 2. Pathing logic for Vercel
+# Assumes telemetry.json is in the same folder as this script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "telemetry.json")
 
@@ -28,15 +28,12 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/api/latency")
 async def analyze(payload: AnalysisRequest):
-    # Check if file exists to prevent a 500 crash (which looks like a CORS error)
+    # If the file is missing, return a JSON error instead of crashing
     if not os.path.exists(FILE_PATH):
-        raise HTTPException(status_code=500, detail=f"File not found at {FILE_PATH}")
+        return {"error": f"telemetry.json not found at {FILE_PATH}"}
 
-    try:
-        with open(FILE_PATH, "r") as f:
-            telemetry_data = json.load(f)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error reading telemetry data")
+    with open(FILE_PATH, "r") as f:
+        telemetry_data = json.load(f)
 
     results = {}
 
@@ -51,19 +48,19 @@ async def analyze(payload: AnalysisRequest):
         if not latencies:
             continue
 
-        # Standard Stats
-        avg_latency = statistics.mean(latencies)
-        avg_uptime = statistics.mean(uptimes) if uptimes else 0
+        # Statistics
+        avg_latency = sum(latencies) / len(latencies)
+        avg_uptime = sum(uptimes) / len(uptimes) if uptimes else 0
         breaches = sum(1 for l in latencies if l > payload.threshold_ms)
 
-        # Precise P95 Calculation
+        # 95th Percentile
         sorted_lat = sorted(latencies)
         n = len(sorted_lat)
         idx = 0.95 * (n - 1)
         low = int(idx)
         high = min(low + 1, n - 1)
-        weight = idx - low
-        p95_latency = sorted_lat[low] * (1 - weight) + sorted_lat[high] * weight
+        w = idx - low
+        p95_latency = sorted_lat[low] * (1 - w) + sorted_lat[high] * w
 
         results[region] = {
             "avg_latency": round(avg_latency, 2),
