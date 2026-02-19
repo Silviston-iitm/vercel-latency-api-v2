@@ -7,8 +7,7 @@ import os
 
 app = FastAPI()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-file_path = os.path.join(BASE_DIR, "telemetry.json")
+file_path = os.path.join(os.getcwd(), "telemetry.json")
 
 with open(file_path, "r") as f:
     telemetry_data = json.load(f)
@@ -19,7 +18,6 @@ class RequestModel(BaseModel):
     threshold_ms: int
 
 
-# 🔥 Handle preflight properly
 @app.options("/api/latency")
 def options_handler():
     return Response(
@@ -35,7 +33,6 @@ def options_handler():
 @app.post("/api/latency")
 def analyze(payload: RequestModel, response: Response):
 
-    # 🔥 Force CORS header on actual response
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
