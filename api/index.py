@@ -1,16 +1,15 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 import json
 import statistics
 import os
 
 app = FastAPI()
 
-# 1. CORS Configuration
-# Note: If your frontend uses 'credentials: include',
-# change ["*"] to specific domains and set allow_credentials=True.
+# 1. Explicit CORS configuration
+# Using allow_origins=["*"] is required by your prompt.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,39 +18,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Robust File Pathing
+# 2. Path handling for Vercel
+# Vercel's file system is read-only. Ensure telemetry.json is in the root or /api folder.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Ensure this path is exactly where your file lives relative to this script
-file_path = os.path.join(BASE_DIR, "..", "telemetry.json")
-
-
-def load_telemetry():
-    if not os.path.exists(file_path):
-        return []
-    try:
-        with open(file_path, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return []
-
+file_path = os.path.join(BASE_DIR, "telemetry.json")
 
 class AnalysisRequest(BaseModel):
     regions: List[str]
     threshold_ms: int
 
-
 @app.post("/api/latency")
 async def analyze(payload: AnalysisRequest):
-    telemetry_data = load_telemetry()
+    # Load data inside the route to ensure fresh reads in serverless contexts
+    if not os.path.exists(file_path):
+        return {"error": "telemetry.json not found", "path_searched": file_path}
 
-    if not telemetry_data:
-        raise HTTPException(status_code=500, detail="Telemetry data source not found or empty.")
+    with open(file_path, "r") as f:
+        telemetry_data = json.load(f)
 
     results = {}
 
     for region in payload.regions:
         region_data = [r for r in telemetry_data if r.get("region") == region]
-
         if not region_data:
             continue
 
@@ -61,21 +49,22 @@ async def analyze(payload: AnalysisRequest):
         if not latencies:
             continue
 
-        # Calculations
+        # Basic Stats
         avg_latency = statistics.mean(latencies)
         avg_uptime = statistics.mean(uptimes) if uptimes else 0
+        breaches = sum(1 for l in latencies if l > payload.threshold_ms)
 
-        # P95 Calculation
+        # 95th Percentile (using linear interpolation)
         sorted_lat = sorted(latencies)
         n = len(sorted_lat)
-        # Using a more standard linear interpolation for p95
-        idx = 0.95 * (n - 1)
-        low = int(idx)
-        high = min(low + 1, n - 1)
-        weight = idx - low
-        p95_latency = sorted_lat[low] * (1 - weight) + sorted_lat[high] * weight
-
-        breaches = sum(1 for l in latencies if l > payload.threshold_ms)
+        if n > 1:
+            idx = 0.95 * (n - 1)
+            low = int(idx)
+            high = min(low + 1, n - 1)
+            weight = idx - low
+            p95_latency = sorted_lat[low] * (1 - weight) + sorted_lat[high] * weight
+        else:
+            p95_latency = sorted_lat[0]
 
         results[region] = {
             "avg_latency": round(avg_latency, 2),
