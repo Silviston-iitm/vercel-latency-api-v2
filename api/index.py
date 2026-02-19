@@ -41,7 +41,11 @@ def analyze(payload: RequestModel):
         uptimes = [r["uptime_pct"] for r in region_data]
 
         avg_latency = statistics.mean(latencies)
-        p95_latency = statistics.quantiles(latencies, n=100)[94]
+
+        sorted_lat = sorted(latencies)
+        index = int(0.95 * (len(sorted_lat) - 1))
+        p95_latency = sorted_lat[index]
+
         avg_uptime = statistics.mean(uptimes)
         breaches = sum(1 for l in latencies if l > payload.threshold_ms)
 
