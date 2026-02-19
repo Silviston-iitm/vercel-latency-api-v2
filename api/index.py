@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 import json
 import statistics
+import os
 
 app = FastAPI()
 
@@ -14,14 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import os
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 file_path = os.path.join(BASE_DIR, "telemetry.json")
 
 with open(file_path, "r") as f:
     telemetry_data = json.load(f)
-
 
 
 class RequestModel(BaseModel):
@@ -34,7 +32,7 @@ def analyze(payload: RequestModel):
     results = {}
 
     for region in payload.regions:
-        region_data = [r for r in data if r["region"] == region]
+        region_data = [r for r in telemetry_data if r["region"] == region]
 
         if not region_data:
             continue
