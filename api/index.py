@@ -1,5 +1,4 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 import json
@@ -7,13 +6,6 @@ import statistics
 import os
 
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["POST", "OPTIONS"],
-    allow_headers=["*"],
-)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 file_path = os.path.join(BASE_DIR, "telemetry.json")
@@ -27,8 +19,23 @@ class RequestModel(BaseModel):
     threshold_ms: int
 
 
+@app.options("/api/latency")
+def options_handler():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
+
+
 @app.post("/api/latency")
-def analyze(payload: RequestModel):
+def analyze(payload: RequestModel, response: Response):
+
+    response.headers["Access-Control-Allow-Origin"] = "*"
+
     results = {}
 
     for region in payload.regions:
