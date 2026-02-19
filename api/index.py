@@ -34,8 +34,6 @@ def options_handler():
 def analyze(payload: RequestModel, response: Response):
 
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
 
     results = {}
 
@@ -49,11 +47,8 @@ def analyze(payload: RequestModel, response: Response):
         uptimes = [r["uptime_pct"] for r in region_data]
 
         avg_latency = statistics.mean(latencies)
-
         sorted_lat = sorted(latencies)
-        index = int(0.95 * (len(sorted_lat) - 1))
-        p95_latency = sorted_lat[index]
-
+        p95_latency = sorted_lat[int(0.95 * (len(sorted_lat) - 1))]
         avg_uptime = statistics.mean(uptimes)
         breaches = sum(1 for l in latencies if l > payload.threshold_ms)
 
@@ -64,4 +59,5 @@ def analyze(payload: RequestModel, response: Response):
             "breaches": breaches
         }
 
-    return results
+    return {"regions": results}
+
