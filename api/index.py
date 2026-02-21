@@ -16,6 +16,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Use the EXACT filename from your prompt
@@ -30,6 +31,29 @@ class AnalysisRequest(BaseModel):
 @app.get("/")
 def health():
     return {"status": "ok", "file_exists": os.path.exists(FILE_PATH)}
+@app.options("/api/latency")
+def options_handler():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
+
+from fastapi import Response
+
 @app.options("/api/latency")
 def options_handler():
     return Response(
@@ -75,7 +99,5 @@ async def analyze(payload: AnalysisRequest):
         }
     return JSONResponse(
         content={"regions": results},
-        headers={
-            "Access-Control-Allow-Origin": "*"
-        }
+        headers={"Access-Control-Allow-Origin": "*"}
     )
