@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Ensure correct file path on Vercel
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "q-vercel-latency.json")
 
 class AnalysisRequest(BaseModel):
