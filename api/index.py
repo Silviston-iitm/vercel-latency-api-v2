@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
+from fastapi.responses import Response
 
 app = FastAPI()
 
@@ -28,7 +29,16 @@ class AnalysisRequest(BaseModel):
 @app.get("/")
 def health():
     return {"status": "ok", "file_exists": os.path.exists(FILE_PATH)}
-
+@app.options("/api/latency")
+def options_handler():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
 @app.post("/api/latency")
 async def analyze(payload: AnalysisRequest):
     if not os.path.exists(FILE_PATH):
